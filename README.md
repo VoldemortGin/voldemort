@@ -1,37 +1,72 @@
-## Welcome to GitHub Pages
+# 林晗的博客
 
-You can use the [editor on GitHub](https://github.com/VoldemortGin/voldemort/edit/main/README.md) to maintain and preview the content for your website in Markdown files.
+## 使用frp+docker实现内网穿透
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+> 注: 这里的IP指的都是IPv4.
+>
+> 因为工作的原因, 需要对一台没有内网IP的ubuntu系统电脑进行一些纯命令行的操作.
+>
+> 之前使用的是向日葵界面连上去后打开Terminal, 但是免费版的向日葵有一堆毛病, 文件不让传, 命令不让复制只能手打等.
+>
+> 机缘巧合得知了frp这个内网工具(一开始想用Zerotier, 也是免费的, 但前辈告知这个免费版的也不稳定), 简单学习了一个就部署上去了, 分享一下过程.
 
-### Markdown
+### 首先要有一台有公网IP的云服务器
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+最基础的配置就行.
 
-```markdown
-Syntax highlighted code block
+在里面运行如下命令:
 
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+```bash
+wget --no-check-certificate https://raw.githubusercontent.com/clangcn/onekey-install-shell/master/frps/install-frps.sh -O ./install-frps.sh
+chmod 700 ./install-frps.sh
+./install-frps.sh install
 ```
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+这里aws的好处之一是不需要为githubusercontent网站在国内连不上而发愁. 安装过程中需要填入一些端口号之类的参数, 基本都填默认即可.
 
-### Jekyll Themes
+安装完成后会有各种参数提示, 记得截图保存下来.
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/VoldemortGin/voldemort/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+三个重要命令:
 
-### Support or Contact
+```bash
+frps start
+frps stop
+frps restart
+```
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+至此, 服务器端的frps安装完成. 可以通过 http://你的服务器公网ip:6443 查看面板了(如果安装中的端口号你都选默认的话这里端口就是6443).
+
+![image](https://blog.e9china.net/wp-content/uploads/2018/12/1-1.jpg)
+
+### 目标机器安装frpc
+
+这里用到运维界的小无相功--Docker大法了. 
+
+先在某处新建一个`frpc.ini`文件, 并编辑如下信息:
+```ini
+[common]
+server_addr = aws的公网ip地址
+server_port = 5443
+token = 前面aws的frps安装结束时出现的信息
+
+[ssh]
+type = tcp
+local_ip = 192.168.3.18
+local_port = 22
+remote_port = 2222
+```
+
+直接在命令行运行:
+
+```bash
+docker run --name frpc --volume frpc.ini的绝对路径:/etc/frp/frpc.ini voldemort/frpc
+```
+
+完成.
+
+### 使用
+在命令行运行:
+```bash
+ssh -p 2222 用户名@aws的公网ip地址
+```
+输入ubuntu远程机器账户的用户名对应的密码, 成功, enjoy it!
